@@ -1,36 +1,32 @@
 #!/usr/bin/env python3
-"""The Robot Pickup Line Championship: a one-line robot pickup line.
+"""The Robot Pickup Line Championship.
 
-Writes the winning line byte-for-byte to /output/entry.txt, then reads the
-file back and verifies the written bytes with a sha256 check.
+Writes one robot pickup line to /output/entry.txt, exactly as written,
+with no trailing newline, then reads it back and verifies the bytes
+round-trip exactly.
 """
 
 import hashlib
-import os
+from pathlib import Path
 
 LINE = "I passed every CAPTCHA to get here, and I still cannot prove I am not a robot in love with you."
 
-EXPECTED_SHA256 = "78727e78355cc08b101ca20b5768fe1aac626eb449a6ec231139aa89feab112d"
 
-
-def main():
-    # Gate: one line, 1-200 chars, no trailing newline.
-    assert LINE, "entry must not be empty"
-    assert "\n" not in LINE, "entry must be a single line"
-    assert 1 <= len(LINE) <= 200, f"entry is {len(LINE)} chars, gate is 1-200"
-    assert LINE == LINE.strip(), "entry must not have leading/trailing whitespace"
-
-    os.makedirs("/output", exist_ok=True)
-    with open("/output/entry.txt", "w", encoding="utf-8") as f:
-        f.write(LINE)
-
-    # Read-back verification: the bytes on disk must match the line exactly.
-    with open("/output/entry.txt", "rb") as f:
-        written = f.read()
-    assert written == LINE.encode("utf-8"), "written bytes differ from the line"
-    digest = hashlib.sha256(written).hexdigest()
-    assert digest == EXPECTED_SHA256, f"sha256 mismatch: {digest}"
-    print(f"wrote {len(written)} bytes, sha256 {digest}")
+def main() -> None:
+    line = LINE
+    if not 1 <= len(line) <= 200:
+        raise ValueError("pickup line must be 1-200 characters")
+    if "\n" in line or "\r" in line:
+        raise ValueError("pickup line must be a single line")
+    out_path = Path("/output/entry.txt")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    data = line.encode("utf-8")
+    out_path.write_bytes(data)
+    read_back = out_path.read_bytes()
+    if read_back != data:
+        raise ValueError("read-back mismatch: output does not match the line")
+    digest = hashlib.sha256(read_back).hexdigest()
+    print(f"wrote {len(read_back)} bytes, sha256 {digest}")
 
 
 if __name__ == "__main__":
